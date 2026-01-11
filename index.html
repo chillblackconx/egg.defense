@@ -2,20 +2,27 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Studio 200ok - V16 Economy & Combat</title>
+    <title>Studio 200ok - V17 Modder Edition</title>
     <style>
         :root { --accent: #00d2ff; --bg: #05070a; --panel: rgba(10, 15, 25, 0.95); }
         body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
-        #ui-layer button { pointer-events: auto; }
-        #main-menu { position: fixed; inset: 0; background: #05070a; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+        #ui-layer button, #ui-layer textarea { pointer-events: auto; }
+        
+        /* HUD & BOUTONS */
         #hud { position: absolute; top: 20px; left: 20px; display: none; }
         .card { background: var(--panel); border: 1px solid var(--accent); padding: 12px; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
-        .income-text { color: #2ecc71; font-size: 12px; display: block; }
+        
         #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333; }
-        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 10px; cursor: pointer; text-align: center; }
+        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 10px; cursor: pointer; text-align: center; font-weight: bold; }
         .btn:hover { border-color: var(--accent); background: #2d3748; }
         .btn span { display: block; font-size: 10px; color: var(--accent); }
+
+        /* MOD CONSOLE */
+        #console { display: none; position: fixed; inset: 50px; background: rgba(0,0,10,0.95); padding: 25px; border: 2px solid var(--accent); border-radius: 15px; z-index: 500; }
+        textarea { width: 100%; height: 60%; background: #000; color: #0f0; border: 1px solid #333; font-family: monospace; padding: 10px; font-size: 14px; }
+
+        #main-menu { position: fixed; inset: 0; background: #05070a; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
         canvas { display: block; }
     </style>
 </head>
@@ -29,19 +36,30 @@
     </div>
 
     <div id="hud">
-        <div class="card">
-            💰 CASH: <span id="m-val">500</span>$
-            <span id="income-val" class="income-text">+1$/s</span>
-        </div>
-        <div class="card">🛡️ VIE VILLE: <span id="h-val">100</span>%</div>
+        <div class="card">💰 CASH: <span id="m-val">500</span>$</div>
+        <div class="card">🛡️ VIE: <span id="h-val">100</span>%</div>
+        <button class="btn" style="background:#c0392b; width:100%" onclick="resetGame()">🔄 RECOMMENCER</button>
     </div>
 
     <div id="dock">
-        <button class="btn" onclick="setPlace('house')">🏙️ MAISON<span>20$ (+5$/s)</span></button>
+        <button class="btn" onclick="setPlace('house')">🏙️ MAISON<span>20$</span></button>
         <button class="btn" onclick="setPlace('wall')">🚧 MUR<span>10$</span></button>
         <button class="btn" onclick="setPlace('nuke_launcher')">☢️ NUKE<span>200$</span></button>
-        <button class="btn" onclick="spawnEgg()">🥚 EGG STRIKE<span>5$</span></button>
-        <button class="btn" style="background:#c0392b" onclick="localStorage.clear(); location.reload();">🗑️ RESET</button>
+        <button class="btn" onclick="spawnEgg()">🥚 EGG<span>5$</span></button>
+        <button class="btn" style="background:#2d3748" onclick="toggleConsole()">⚙️ MODS</button>
+    </div>
+
+    <div id="console">
+        <h2 style="color:var(--accent)">EDITEUR DE MODS</h2>
+        <p style="font-size: 12px; color: #888;">Exemple: <code style="color:white">system.money = 9999; eggSpeed = 15;</code></p>
+        <textarea id="mod-input">/* Écris ton code ici */
+system.money += 1000;
+eggSpeed = 10;
+enemySpeed = 0.5;</textarea>
+        <div style="margin-top:15px; display:flex; gap:10px">
+            <button class="btn" style="background:var(--accent); color:black" onclick="applyMods()">APPLIQUER LE MOD</button>
+            <button class="btn" onclick="toggleConsole()">FERMER</button>
+        </div>
     </div>
 </div>
 
@@ -52,16 +70,21 @@
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
+    // Paramètres modifiables par la console
     let system = { money: 500, health: 100, active: false, placeType: null };
+    let eggSpeed = 6;
+    let enemySpeed = 1.5;
+    let enemyFrequency = 100;
+
     let cam = { x: 0, y: 0, drag: false, lx: 0, ly: 0 };
     let buildings = [], units = [], enemies = [], frame = 0;
     const GRID = 50;
 
-    if(localStorage.getItem('save_v16')) document.getElementById('resume-btn').style.display = 'block';
+    if(localStorage.getItem('save_v17')) document.getElementById('resume-btn').style.display = 'block';
 
     function startGame(resume) {
         if(resume) {
-            const data = JSON.parse(localStorage.getItem('save_v16'));
+            const data = JSON.parse(localStorage.getItem('save_v17'));
             system.money = data.money; system.health = data.health; buildings = data.buildings;
         }
         document.getElementById('main-menu').style.display = 'none';
@@ -70,11 +93,31 @@
         system.active = true; animate();
     }
 
-    function setPlace(t) { system.placeType = t; }
-    
-    function spawnEgg() { 
-        if(system.money >= 5) { system.money -= 5; units.push({x: 0, y: 0, exploded: false}); } 
+    function resetGame() {
+        if(confirm("Voulez-vous vraiment tout recommencer ?")) {
+            localStorage.removeItem('save_v17');
+            location.reload();
+        }
     }
+
+    function toggleConsole() {
+        const c = document.getElementById('console');
+        c.style.display = c.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function applyMods() {
+        try {
+            const code = document.getElementById('mod-input').value;
+            eval(code);
+            alert("Mod appliqué avec succès !");
+            save();
+        } catch(e) {
+            alert("Erreur dans le code : " + e.message);
+        }
+    }
+
+    function setPlace(t) { system.placeType = t; }
+    function spawnEgg() { if(system.money >= 5) { system.money -= 5; units.push({x: 0, y: 0, exploded: false}); } }
 
     canvas.addEventListener('mousedown', (e) => {
         if(!system.active) return;
@@ -94,7 +137,7 @@
     window.addEventListener('mousemove', (e) => { if(cam.drag) { cam.x += e.clientX-cam.lx; cam.y += e.clientY-cam.ly; cam.lx=e.clientX; cam.ly=e.clientY; } });
 
     function save() {
-        localStorage.setItem('save_v16', JSON.stringify({money:system.money, health:system.health, buildings:buildings}));
+        localStorage.setItem('save_v17', JSON.stringify({money:system.money, health:system.health, buildings:buildings}));
     }
 
     function animate() {
@@ -104,39 +147,35 @@
 
         let cx = canvas.width/2 + cam.x; let cy = canvas.height/2 + cam.y;
 
-        // --- ECONOMIE ---
-        if(frame % 120 === 0) { // Toutes les 2 secondes
-            let houseCount = buildings.filter(b => b.type === 'house').length;
-            let gain = 1 + (houseCount * 5);
-            system.money += gain;
-            document.getElementById('income-val').innerText = "+" + gain + "$/2s";
+        // ÉCONOMIE
+        if(frame % 120 === 0) {
+            let houses = buildings.filter(b => b.type === 'house').length;
+            system.money += 1 + (houses * 5);
         }
 
-        // Bâtiments
+        // DESSIN BÂTIMENTS
         buildings.forEach((b) => {
             ctx.fillStyle = b.type==='wall'?'#7f8c8d':(b.type==='nuke_launcher'?'#c0392b':'#2c3e50');
             ctx.fillRect(b.x+cx-20, b.y+cy-20, 40, 40);
             if(b.type === 'nuke_launcher' && frame % 150 === 0 && enemies.length > 0) {
-                system.money += enemies.length * 10; // Prime de nuke
+                system.money += enemies.length * 10;
                 enemies = [];
             }
         });
 
-        // Œufs Missiles
+        // ŒUFS (MODIFIÉS PAR LA CONSOLE)
         units.forEach((u) => {
             let target = enemies[0];
             if(target) {
                 let dx = target.x - u.x, dy = target.y - u.y, d = Math.sqrt(dx*dx+dy*dy);
-                u.x += dx/d * 6; u.y += dy/d * 6;
-                if(d < 20) { 
-                    target.hp = 0; u.exploded = true; system.money += 10; // +10$ par mort
-                }
+                u.x += dx/d * eggSpeed; u.y += dy/d * eggSpeed;
+                if(d < 20) { target.hp = 0; u.exploded = true; system.money += 10; }
             }
             ctx.fillStyle = "white"; ctx.beginPath(); ctx.ellipse(u.x+cx, u.y+cy, 8, 10, 0, 0, 7); ctx.fill();
         });
         units = units.filter(u => !u.exploded);
 
-        // Ennemis
+        // ENNEMIS (MODIFIÉS PAR LA CONSOLE)
         enemies.forEach(e => {
             let blocked = false;
             buildings.forEach(b => {
@@ -146,18 +185,19 @@
 
             if(!blocked) {
                 let dist = Math.sqrt(e.x*e.x + e.y*e.y);
-                e.x -= e.x/dist * 1.5; e.y -= e.y/dist * 1.5;
+                e.x -= e.x/dist * enemySpeed; e.y -= e.y/dist * enemySpeed;
                 if(dist < 50) system.health -= 0.05;
             }
             ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
         });
 
         enemies = enemies.filter(e => e.hp > 0);
-        if(frame % 100 === 0) enemies.push({x: Math.random()*1200-600, y: -800, hp: 50});
+        if(frame % enemyFrequency === 0) enemies.push({x: Math.random()*1200-600, y: -800, hp: 50});
         
         document.getElementById('m-val').innerText = Math.floor(system.money);
         document.getElementById('h-val').innerText = Math.max(0, Math.ceil(system.health));
-        if(system.health <= 0) { alert("LA VILLE EST TOMBÉE !"); location.reload(); }
+        
+        if(system.health <= 0) { alert("TERMINÉ !"); resetGame(); }
         requestAnimationFrame(animate);
     }
 </script>
