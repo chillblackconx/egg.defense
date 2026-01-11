@@ -2,20 +2,22 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Studio 200ok - V13 Tactical</title>
+    <title>Studio 200ok - V14 Egg Strike</title>
     <style>
-        :root { --accent: #00d2ff; --bg: #05070a; --panel: rgba(15, 25, 40, 0.95); }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        :root { --accent: #00d2ff; --bg: #05070a; --panel: rgba(10, 15, 25, 0.95); }
+        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
         #ui-layer button { pointer-events: auto; }
-        #main-menu { position: fixed; inset: 0; background: radial-gradient(circle, #1b2735, #05070a); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+        
+        #main-menu { position: fixed; inset: 0; background: #05070a; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
         #hud { position: absolute; top: 20px; left: 20px; display: none; }
-        .stat-card { background: var(--panel); border: 1px solid var(--accent); padding: 10px 15px; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
+        .card { background: var(--panel); border: 1px solid var(--accent); padding: 12px; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
+        
         #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333; }
-        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 8px 15px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 10px; cursor: pointer; text-align: center; }
         .btn:hover { border-color: var(--accent); background: #2d3748; }
-        .btn .price { font-size: 10px; color: var(--accent); }
-        #game-over { display: none; position: fixed; inset: 0; background: rgba(100,0,0,0.9); flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        .btn span { display: block; font-size: 10px; color: var(--accent); }
+
         canvas { display: block; }
     </style>
 </head>
@@ -25,20 +27,21 @@
     <div id="main-menu">
         <h1 style="color:var(--accent); letter-spacing:8px;">STUDIO 200ok</h1>
         <button class="btn" style="padding:15px 40px;" onclick="startGame(false)">NOUVELLE PARTIE</button>
-        <button id="resume-btn" class="btn" style="display:none; padding:15px 40px; margin-top:10px; background:var(--accent); color:black;" onclick="startGame(true)">CONTINUER OFFLINE</button>
+        <button id="resume-btn" class="btn" style="display:none; padding:15px 40px; margin-top:10px; background:var(--accent); color:black;" onclick="startGame(true)">CONTINUER</button>
     </div>
+
     <div id="hud">
-        <div class="stat-card">💰 ARGENT: <span id="m-val">500</span>$</div>
-        <div class="stat-card">🛡️ VILLE: <span id="h-val">100</span>%</div>
+        <div class="card">💰 CASH: <span id="m-val">500</span>$</div>
+        <div class="card">🛡️ CITY LIFE: <span id="h-val">100</span>%</div>
     </div>
+
     <div id="dock">
-        <button class="btn" onclick="setPlace('house')">🏙️ MAISON<span class="price">20$</span></button>
-        <button class="btn" onclick="setPlace('wall')">🚧 MUR<span class="price">10$</span></button>
-        <button class="btn" onclick="setPlace('nuke_launcher')">☢️ NUKE<span class="price">200$</span></button>
-        <button class="btn" onclick="spawnEgg()">🥚 EGG<span class="price">5$</span></button>
-        <button class="btn" style="background:#2d3748" onclick="localStorage.removeItem('save_200ok_v13'); location.reload();">🗑️ RESET</button>
+        <button class="btn" onclick="setPlace('house')">🏙️ MAISON<span>20$</span></button>
+        <button class="btn" onclick="setPlace('wall')">🚧 MUR<span>10$</span></button>
+        <button class="btn" onclick="setPlace('nuke_launcher')">☢️ NUKE<span>200$</span></button>
+        <button class="btn" onclick="spawnEgg()">🥚 EGG STRIKE<span>5$</span></button>
+        <button class="btn" style="background:#c0392b" onclick="localStorage.clear(); location.reload();">🗑️ RESET</button>
     </div>
-    <div id="game-over"><h1>GAME OVER</h1><button class="btn" onclick="location.reload()">RETOUR</button></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -53,11 +56,11 @@
     let buildings = [], units = [], enemies = [], frame = 0;
     const GRID = 50;
 
-    if(localStorage.getItem('save_200ok_v13')) document.getElementById('resume-btn').style.display = 'block';
+    if(localStorage.getItem('save_v14')) document.getElementById('resume-btn').style.display = 'block';
 
     function startGame(resume) {
         if(resume) {
-            const data = JSON.parse(localStorage.getItem('save_200ok_v13'));
+            const data = JSON.parse(localStorage.getItem('save_v14'));
             system.money = data.money; system.health = data.health; buildings = data.buildings;
         }
         document.getElementById('main-menu').style.display = 'none';
@@ -67,82 +70,86 @@
     }
 
     function setPlace(t) { system.placeType = t; }
-    function spawnEgg() { if(system.money >= 5) { system.money -= 5; units.push({x:0, y:0}); } }
+    
+    function spawnEgg() { 
+        if(system.money >= 5) { 
+            system.money -= 5; 
+            units.push({x: 0, y: 0, exploded: false}); 
+        } 
+    }
 
     canvas.addEventListener('mousedown', (e) => {
         if(!system.active) return;
         if(system.placeType) {
-            let cost = system.placeType === 'nuke_launcher' ? 200 : (system.placeType === 'house' ? 20 : 10);
-            if(system.money >= cost) {
-                let gx = Math.round((e.clientX - canvas.width/2 - cam.x) / GRID) * GRID;
-                let gy = Math.round((e.clientY - canvas.height/2 - cam.y) / GRID) * GRID;
-                buildings.push({type: system.placeType, x: gx, y: gy, hp: (system.placeType === 'wall' ? 100 : 50)});
-                system.money -= cost; system.placeType = null;
-                localStorage.setItem('save_200ok_v13', JSON.stringify({money:system.money, health:system.health, buildings:buildings}));
-            }
+            let gx = Math.round((e.clientX - canvas.width/2 - cam.x) / GRID) * GRID;
+            let gy = Math.round((e.clientY - canvas.height/2 - cam.y) / GRID) * GRID;
+            buildings.push({type: system.placeType, x: gx, y: gy, hp: 100});
+            system.money -= (system.placeType === 'nuke_launcher' ? 200 : (system.placeType === 'house' ? 20 : 10));
+            system.placeType = null;
+            save();
         } else { cam.drag = true; cam.lx = e.clientX; cam.ly = e.clientY; }
     });
 
     window.addEventListener('mouseup', () => cam.drag = false);
     window.addEventListener('mousemove', (e) => { if(cam.drag) { cam.x += e.clientX-cam.lx; cam.y += e.clientY-cam.ly; cam.lx=e.clientX; cam.ly=e.clientY; } });
 
+    function save() {
+        localStorage.setItem('save_v14', JSON.stringify({money:system.money, health:system.health, buildings:buildings}));
+    }
+
     function animate() {
         if(!system.active) return;
-        if(system.health <= 0) { document.getElementById('game-over').style.display = 'flex'; return; }
         ctx.fillStyle = "#05070a"; ctx.fillRect(0,0,canvas.width, canvas.height);
         frame++;
 
         let cx = canvas.width/2 + cam.x; let cy = canvas.height/2 + cam.y;
 
-        // Rendu Bâtiments
-        buildings.forEach((b, index) => {
-            ctx.fillStyle = b.type === 'wall' ? "#7f8c8d" : (b.type === 'nuke_launcher' ? "#c0392b" : "#2c3e50");
-            ctx.fillRect(b.x+cx-22, b.y+cy-22, 44, 44);
-            // Barre de vie du bâtiment
-            ctx.fillStyle = "red"; ctx.fillRect(b.x+cx-20, b.y+cy-30, 40, 4);
-            ctx.fillStyle = "lime"; ctx.fillRect(b.x+cx-20, b.y+cy-30, (b.hp/(b.type==='wall'?100:50))*40, 4);
+        // Bâtiments (Style d'avant)
+        buildings.forEach((b, i) => {
+            ctx.fillStyle = b.type==='wall'?'#7f8c8d':(b.type==='nuke_launcher'?'#c0392b':'#2c3e50');
+            ctx.fillRect(b.x+cx-20, b.y+cy-20, 40, 40);
+            if(b.type === 'nuke_launcher' && frame % 150 === 0 && enemies.length > 0) enemies = [];
         });
 
-        // Unités
-        units.forEach(u => {
+        // Œufs Missiles (Cherchent les ennemis)
+        units.forEach((u, i) => {
             let target = enemies[0];
             if(target) {
                 let dx = target.x - u.x, dy = target.y - u.y, d = Math.sqrt(dx*dx+dy*dy);
-                u.x += dx/d * 2; u.y += dy/d * 2;
-                if(d < 40) target.hp -= 1;
-            }
-            ctx.fillStyle = "white"; ctx.beginPath(); ctx.ellipse(u.x+cx, u.y+cy, 8, 11, 0, 0, 7); ctx.fill();
-        });
-
-        // Ennemis avec logique de collision
-        enemies.forEach(e => {
-            let tx = 0, ty = 0, distToCenter = Math.sqrt(e.x*e.x + e.y*e.y);
-            let blocked = false;
-
-            // Vérifier si un bâtiment bloque le chemin
-            buildings.forEach(b => {
-                let dx = b.x - e.x, dy = b.y - e.y, d = Math.sqrt(dx*dx+dy*dy);
-                if(d < 40) {
-                    blocked = true;
-                    b.hp -= 0.2; // L'ennemi attaque le bâtiment
-                    if(b.hp <= 0) buildings = buildings.filter(item => item !== b);
+                u.x += dx/d * 5; u.y += dy/d * 5;
+                if(d < 20) { 
+                    target.hp -= 100; u.exploded = true; 
+                    ctx.fillStyle = "yellow"; ctx.beginPath(); ctx.arc(u.x+cx, u.y+cy, 30, 0, 7); ctx.fill();
                 }
+            }
+            ctx.fillStyle = "white"; ctx.beginPath(); ctx.ellipse(u.x+cx, u.y+cy, 8, 10, 0, 0, 7); ctx.fill();
+        });
+        units = units.filter(u => !u.exploded);
+
+        // Ennemis
+        enemies.forEach(e => {
+            let blocked = false;
+            buildings.forEach(b => {
+                let d = Math.sqrt((b.x-e.x)**2 + (b.y-e.y)**2);
+                if(d < 40) { blocked = true; b.hp -= 0.5; if(b.hp <= 0) buildings = buildings.filter(x => x !== b); }
             });
 
             if(!blocked) {
-                e.x += (-e.x/distToCenter) * 1;
-                e.y += (-e.y/distToCenter) * 1;
+                let dist = Math.sqrt(e.x*e.x + e.y*e.y);
+                e.x -= e.x/dist * 1.2; e.y -= e.y/dist * 1.2;
+                if(dist < 50) system.health -= 0.05;
             }
 
-            ctx.fillStyle = "#ff4757"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
-            if(distToCenter < 50) system.health -= 0.05; // Dégâts réduits à la ville
+            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
         });
 
-        if(frame % 180 === 0) enemies.push({x: Math.random()*1200-600, y: -800, hp: 50});
-        if(frame % 60 === 0) system.money += 1;
+        enemies = enemies.filter(e => e.hp > 0);
+        if(frame % 120 === 0) enemies.push({x: Math.random()*1000-500, y: -800, hp: 50});
+        if(frame % 300 === 0) save();
 
         document.getElementById('m-val').innerText = Math.floor(system.money);
         document.getElementById('h-val').innerText = Math.max(0, Math.ceil(system.health));
+        if(system.health <= 0) { alert("GAME OVER"); location.reload(); }
         requestAnimationFrame(animate);
     }
 </script>
