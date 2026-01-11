@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Studio 200ok - V9 Stable Engine</title>
+    <style>
+        :root { --accent: #00d2ff; --bg: #05070a; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        canvas { display: block; background: #000; }
+
+        /* MENU DE DÉMARRAGE */
+        #main-menu { position: fixed; inset: 0; background: radial-gradient(circle, #1b2735, #05070a); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 10px solid #000; }
+        .menu-title { font-size: 3em; letter-spacing: 10px; color: var(--accent); text-shadow: 0 0 20px var(--accent); margin-bottom: 20px; }
+
+        /* HUD */
+        #hud { position: absolute; top: 20px; left: 20px; z-index: 10; display: none; }
+        .card { background: rgba(10, 20, 30, 0.9); border: 1px solid var(--accent); padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-weight: bold; }
+
+        /* BARRE D'ACTIONS */
+        #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0a0f18; padding: 12px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333; z-index: 100; }
+        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        .btn:hover { border-color: var(--accent); background: #2d3748; box-shadow: 0 0 10px var(--accent); }
+        .btn span { display: block; font-size: 10px; color: var(--accent); }
+
+        /* CONSOLE & IMPORT */
+        #console { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 5000; padding: 25px; }
+        .console-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; height: 80%; }
+        textarea { background: #000; color: #0f0; border: 1px solid #333; padding: 15px; font-family: monospace; border-radius: 10px; }
+        .sidebar { background: #111; padding: 20px; border-radius: 10px; border: 1px solid #444; overflow-y: auto; }
+
+        #placement-hint { display: none; position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: var(--accent); color: black; padding: 8px 20px; border-radius: 20px; font-weight: bold; z-index: 50; }
+    </style>
+</head>
+<body>
+
+<div id="main-menu">
+    <div class="menu-title">STUDIO 200ok</div>
+    <button class="btn" style="padding: 20px 60px; font-size: 1.5em;" onclick="launchGame()">COMMENCER LA PARTIE</button>
+</div>
+
+<div id="hud">
+    <div class="card">CASH: <span id="m-val">500</span>$</div>
+    <div class="card">CITY HP: <span id="h-val">100</span>%</div>
+</div>
+
+<div id="placement-hint">CLIQUEZ SUR LA GRILLE POUR POSER L'ÉLÉMENT</div>
+
+<div id="dock">
+    <button class="btn" onclick="activatePlacement('house')">🏙️ MAISON<span>20$</span></button>
+    <button class="btn" onclick="activatePlacement('wall')">🚧 BARRIÈRE<span>10$</span></button>
+    <button class="btn" onclick="activatePlacement('nuke_launcher')">☢️ NUKE L.<span>200$</span></button>
+    <button class="btn" onclick="spawnUnit('egg')">🥚 EGG<span>5$</span></button>
+    <button class="btn" style="background:#2d3748" onclick="toggleConsole()">⚙️ MODS & FILES</button>
+</div>
+
+<div id="console">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px">
+        <h2 style="color:var(--accent); margin:0">MODDING & TEXTURE ENGINE</h2>
+        <div>
+            <button class="btn" onclick="exportMod()">📤 EXPORTER (.txt)</button>
+            <button class="btn" onclick="importMod()">📥 IMPORTER</button>
+        </div>
+    </div>
+    <div class="console-grid">
+        <textarea id="mod-code">/* CODE DU MOD */
+system.style = "neon";</textarea>
+        <div class="sidebar">
+            <h4 style="margin-top:0">CHARGER DES FICHIERS</h4>
+            <div style="margin-bottom:15px;"><label style="font-size:11px; color:var(--accent);">TEXTURE MAISON</label><input type="file" onchange="loadFile(event, 'house')"></div>
+            <div style="margin-bottom:15px;"><label style="font-size:11px; color:var(--accent);">TEXTURE BARRIÈRE</label><input type="file" onchange="loadFile(event, 'wall')"></div>
+            <div style="margin-bottom:15px;"><label style="font-size:11px; color:var(--accent);">TEXTURE TANK/EGG</label><input type="file" onchange="loadFile(event, 'egg')"></div>
+            <button class="btn" style="width:100%; background:var(--accent); color:black;" onclick="applyMod()">APPLIQUER MODS</button>
+            <button class="btn" style="width:100%; margin-top:10px" onclick="toggleConsole()">FERMER</button>
+        </div>
+    </div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let system = { money: 500, health: 100, isModded: false, style: "default", active: false };
+    let imgCache = {};
+    let cam = { x: 0, y: 0, drag: false, lx: 0, ly: 0 };
+    let buildings = [], units = [], enemies = [], frame = 0;
+    let placeType = null;
+    const GRID = 50;
+
+    // --- FONCTIONS MENU ---
+    function launchGame() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('dock').style.display = 'flex';
+        system.active = true;
+        loop();
+    }
+
+    function toggleConsole() {
+        const c = document.getElementById('console');
+        c.style.display = c.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function activatePlacement(type) {
+        placeType = type;
+        document.getElementById('placement-hint').style.display = 'block';
+    }
+
+    // --- SYSTEME DE FICHIERS ---
+    function loadFile(event, type) {
+        const file = event.target.files[0];
+        if(file) {
+            const r = new FileReader();
+            r.onload = (e) => {
+                let i = new Image();
+                i.src = e.target.result;
+                i.onload = () => { imgCache[type] = i; alert(type + " texture importée !"); };
+            };
+            r.readAsDataURL(file);
+        }
+    }
+
+    function applyMod() {
+        try { eval(document.getElementById('mod-code').value); system.isModded = true; toggleConsole(); }
+        catch(e) { alert("Erreur mod: " + e.message); }
+    }
+
+    function exportMod() {
+        const blob = new Blob([document.getElementById('mod-code').value], {type:"text/plain"});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download="mod_200ok.txt"; a.click();
+    }
+
+    function importMod() {
+        let i = document.createElement('input'); i.type='file';
+        i.onchange = e => {
+            let r = new FileReader(); r.readAsText(e.target.files[0]);
+            r.onload = () => { document.getElementById('mod-code').value = r.result; applyMod(); };
+        }; i.click();
+    }
+
+    // --- CLICS ET PLACEMENT ---
+    canvas.addEventListener('mousedown', (e) => {
+        if(placeType) {
+            let cost = placeType === 'nuke_launcher' ? 200 : (placeType === 'house' ? 20 : 10);
+            if(system.money >= cost) {
+                let gx = Math.round((e.clientX - canvas.width/2 - cam.x) / GRID) * GRID;
+                let gy = Math.round((e.clientY - canvas.height/2 - cam.y) / GRID) * GRID;
+                buildings.push({type: placeType, x: gx, y: gy});
+                system.money -= cost;
+            }
+            placeType = null;
+            document.getElementById('placement-hint').style.display = 'none';
+        } else {
+            cam.drag = true; cam.lx = e.clientX; cam.ly = e.clientY;
+        }
+    });
+
+    window.addEventListener('mouseup', () => cam.drag = false);
+    window.addEventListener('mousemove', (e) => {
+        if(cam.drag) {
+            cam.x += e.clientX - cam.lx;
+            cam.y += e.clientY - cam.ly;
+            cam.lx = e.clientX; cam.ly = e.clientY;
+        }
+    });
+
+    function spawnUnit(t) { if(system.money >= 5) { system.money -= 5; units.push({x: -cam.x, y: -cam.y, type: t}); } }
+
+    // --- DESSIN PIXEL ART ---
+    function drawHouse(x, y) {
+        ctx.fillStyle = "#2c3e50"; ctx.fillRect(x-20, y-20, 40, 40);
+        ctx.fillStyle = "#f1c40f"; ctx.fillRect(x-10, y-10, 8, 8); // Fenêtre
+    }
+    function drawWall(x, y) {
+        ctx.fillStyle = "#7f8c8d"; ctx.fillRect(x-22, y-22, 44, 44);
+        ctx.strokeStyle = "#333"; ctx.strokeRect(x-20, y-20, 40, 40);
+    }
+
+    // --- BOUCLE ---
+    function loop() {
+        if(!system.active) return;
+        ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width, canvas.height);
+        frame++;
+
+        if(frame % 150 === 0) enemies.push({x: Math.random()*2000-1000, y: -1000, hp: 50});
+        if(frame % 60 === 0) system.money += 1;
+
+        document.getElementById('m-val').innerText = system.money;
+        document.getElementById('h-val').innerText = Math.ceil(system.health);
+
+        let cx = canvas.width/2 + cam.x;
+        let cy = canvas.height/2 + cam.y;
+
+        // Grille
+        ctx.strokeStyle = "#111";
+        for(let i = -1000; i <= 1000; i+=GRID) {
+            ctx.beginPath(); ctx.moveTo(i+cx, -1000+cy); ctx.lineTo(i+cx, 1000+cy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(-1000+cx, i+cy); ctx.lineTo(1000+cx, i+cy); ctx.stroke();
+        }
+
+        if(system.style === "neon") { ctx.shadowBlur = 10; ctx.shadowColor = "cyan"; }
+
+        buildings.forEach(b => {
+            if(imgCache[b.type]) ctx.drawImage(imgCache[b.type], b.x+cx-25, b.y+cy-25, 50, 50);
+            else {
+                if(b.type === 'house') drawHouse(b.x+cx, b.y+cy);
+                else if(b.type === 'wall') drawWall(b.x+cx, b.y+cy);
+                else { ctx.fillStyle="red"; ctx.fillRect(b.x+cx-20, b.y+cy-20, 40, 40); }
+            }
+            if(b.type === 'nuke_launcher' && frame % 200 === 0 && enemies.length > 0) enemies = [];
+        });
+
+        units.forEach(u => {
+            let target = enemies[0];
+            if(target) {
+                let dx = target.x - u.x, dy = target.y - u.y, d = Math.sqrt(dx*dx+dy*dy);
+                u.x += dx/d * 2; u.y += dy/d * 2;
+                if(d < 50) target.hp -= 1;
+            }
+            if(imgCache['egg']) ctx.drawImage(imgCache['egg'], u.x+cx-15, u.y+cy-15, 30, 30);
+            else { ctx.fillStyle="white"; ctx.beginPath(); ctx.arc(u.x+cx, u.y+cy, 10, 0, 7); ctx.fill(); }
+        });
+
+        enemies.forEach(e => {
+            let dx = -e.x, dy = -e.y, d = Math.sqrt(dx*dx+dy*dy);
+            e.x += dx/d * 1.5; e.y += dy/d * 1.5;
+            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
+            if(d < 50) system.health -= 0.1;
+        });
+
+        enemies = enemies.filter(e => e.hp > 0);
+        ctx.shadowBlur = 0;
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
