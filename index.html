@@ -2,66 +2,43 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Studio 200ok - V11 Fix</title>
+    <title>Studio 200ok - V13 Tactical</title>
     <style>
-        :root { --accent: #00d2ff; --bg: #05070a; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
-        
-        /* Priorité aux interfaces sur le canvas */
+        :root { --accent: #00d2ff; --bg: #05070a; --panel: rgba(15, 25, 40, 0.95); }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         #ui-layer { position: absolute; inset: 0; pointer-events: none; z-index: 100; }
-        #ui-layer button, #ui-layer input, #ui-layer textarea { pointer-events: auto; }
-
-        #main-menu { position: fixed; inset: 0; background: #05070a; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
-        
-        #hud { position: absolute; top: 20px; left: 20px; }
-        .card { background: rgba(10, 20, 30, 0.9); border: 1px solid var(--accent); padding: 10px; border-radius: 8px; margin-bottom: 5px; }
-        
-        #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0a1018; padding: 10px; border-radius: 15px; display: flex; gap: 8px; border: 1px solid #333; }
-        
-        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #ui-layer button { pointer-events: auto; }
+        #main-menu { position: fixed; inset: 0; background: radial-gradient(circle, #1b2735, #05070a); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+        #hud { position: absolute; top: 20px; left: 20px; display: none; }
+        .stat-card { background: var(--panel); border: 1px solid var(--accent); padding: 10px 15px; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
+        #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333; }
+        .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 8px 15px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
         .btn:hover { border-color: var(--accent); background: #2d3748; }
-
-        #console { display: none; position: fixed; inset: 20px; background: rgba(0,0,0,0.95); padding: 20px; border: 1px solid var(--accent); }
-        #game-over { display: none; position: fixed; inset: 0; background: rgba(150,0,0,0.9); flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
-        
-        canvas { display: block; z-index: 1; }
+        .btn .price { font-size: 10px; color: var(--accent); }
+        #game-over { display: none; position: fixed; inset: 0; background: rgba(100,0,0,0.9); flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
 <div id="ui-layer">
     <div id="main-menu">
-        <h1 style="color:var(--accent); letter-spacing:10px;">STUDIO 200ok</h1>
-        <div style="display:flex; gap:10px;">
-            <button class="btn" onclick="startGame(false)">NOUVELLE PARTIE</button>
-            <button id="resume-btn" class="btn" style="display:none; background:var(--accent); color:black;" onclick="startGame(true)">CONTINUER</button>
-        </div>
+        <h1 style="color:var(--accent); letter-spacing:8px;">STUDIO 200ok</h1>
+        <button class="btn" style="padding:15px 40px;" onclick="startGame(false)">NOUVELLE PARTIE</button>
+        <button id="resume-btn" class="btn" style="display:none; padding:15px 40px; margin-top:10px; background:var(--accent); color:black;" onclick="startGame(true)">CONTINUER OFFLINE</button>
     </div>
-
-    <div id="hud" style="display:none;">
-        <div class="card">CASH: <span id="m-val">500</span>$</div>
-        <div class="card">LIFE: <span id="h-val">100</span>%</div>
+    <div id="hud">
+        <div class="stat-card">💰 ARGENT: <span id="m-val">500</span>$</div>
+        <div class="stat-card">🛡️ VILLE: <span id="h-val">100</span>%</div>
     </div>
-
-    <div id="dock" style="display:none;">
-        <button class="btn" onclick="setPlace('house')">🏙️ MAISON</button>
-        <button class="btn" onclick="setPlace('wall')">🚧 MUR</button>
-        <button class="btn" onclick="setPlace('nuke_launcher')">☢️ NUKE</button>
-        <button class="btn" onclick="spawnUnit()">🥚 EGG</button>
-        <button class="btn" style="background:#2d3748" onclick="toggleConsole()">⚙️ MODS</button>
+    <div id="dock">
+        <button class="btn" onclick="setPlace('house')">🏙️ MAISON<span class="price">20$</span></button>
+        <button class="btn" onclick="setPlace('wall')">🚧 MUR<span class="price">10$</span></button>
+        <button class="btn" onclick="setPlace('nuke_launcher')">☢️ NUKE<span class="price">200$</span></button>
+        <button class="btn" onclick="spawnEgg()">🥚 EGG<span class="price">5$</span></button>
+        <button class="btn" style="background:#2d3748" onclick="localStorage.removeItem('save_200ok_v13'); location.reload();">🗑️ RESET</button>
     </div>
-
-    <div id="console">
-        <h3>MODDING CONSOLE</h3>
-        <textarea id="mod-code" style="width:100%; height:200px; background:#000; color:#0f0;">system.money = 1000;</textarea><br><br>
-        <button class="btn" onclick="applyMod()">APPLIQUER</button>
-        <button class="btn" onclick="toggleConsole()">FERMER</button>
-    </div>
-
-    <div id="game-over">
-        <h1>GAME OVER</h1>
-        <button class="btn" onclick="resetGame()">RECOMMENCER</button>
-    </div>
+    <div id="game-over"><h1>GAME OVER</h1><button class="btn" onclick="location.reload()">RETOUR</button></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -69,120 +46,103 @@
 <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
     let system = { money: 500, health: 100, active: false, placeType: null };
     let cam = { x: 0, y: 0, drag: false, lx: 0, ly: 0 };
     let buildings = [], units = [], enemies = [], frame = 0;
     const GRID = 50;
 
-    // --- INITIALISATION ---
-    if(localStorage.getItem('save_200ok')) document.getElementById('resume-btn').style.display = 'block';
+    if(localStorage.getItem('save_200ok_v13')) document.getElementById('resume-btn').style.display = 'block';
 
     function startGame(resume) {
         if(resume) {
-            const data = JSON.parse(localStorage.getItem('save_200ok'));
-            system.money = data.money;
-            system.health = data.health;
-            buildings = data.buildings;
+            const data = JSON.parse(localStorage.getItem('save_200ok_v13'));
+            system.money = data.money; system.health = data.health; buildings = data.buildings;
         }
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         document.getElementById('dock').style.display = 'flex';
-        system.active = true;
-        animate();
+        system.active = true; animate();
     }
 
-    function resetGame() {
-        localStorage.removeItem('save_200ok');
-        location.reload();
-    }
+    function setPlace(t) { system.placeType = t; }
+    function spawnEgg() { if(system.money >= 5) { system.money -= 5; units.push({x:0, y:0}); } }
 
-    // --- BOUTONS ---
-    function toggleConsole() {
-        const c = document.getElementById('console');
-        c.style.display = c.style.display === 'block' ? 'none' : 'block';
-    }
-
-    function setPlace(type) { system.placeType = type; }
-    function spawnUnit() { if(system.money >= 5) { system.money -= 5; units.push({x: -cam.x, y: -cam.y}); } }
-
-    function applyMod() {
-        try { eval(document.getElementById('mod-code').value); } catch(e) { alert(e); }
-        save();
-    }
-
-    function save() {
-        localStorage.setItem('save_200ok', JSON.stringify({
-            money: system.money, health: system.health, buildings: buildings
-        }));
-    }
-
-    // --- LOGIQUE CLIC (CANVAS SEULEMENT) ---
     canvas.addEventListener('mousedown', (e) => {
         if(!system.active) return;
         if(system.placeType) {
-            let gx = Math.round((e.clientX - canvas.width/2 - cam.x) / GRID) * GRID;
-            let gy = Math.round((e.clientY - canvas.height/2 - cam.y) / GRID) * GRID;
-            buildings.push({type: system.placeType, x: gx, y: gy});
-            system.money -= 10;
-            system.placeType = null;
-            save();
-        } else {
-            cam.drag = true; cam.lx = e.clientX; cam.ly = e.clientY;
-        }
+            let cost = system.placeType === 'nuke_launcher' ? 200 : (system.placeType === 'house' ? 20 : 10);
+            if(system.money >= cost) {
+                let gx = Math.round((e.clientX - canvas.width/2 - cam.x) / GRID) * GRID;
+                let gy = Math.round((e.clientY - canvas.height/2 - cam.y) / GRID) * GRID;
+                buildings.push({type: system.placeType, x: gx, y: gy, hp: (system.placeType === 'wall' ? 100 : 50)});
+                system.money -= cost; system.placeType = null;
+                localStorage.setItem('save_200ok_v13', JSON.stringify({money:system.money, health:system.health, buildings:buildings}));
+            }
+        } else { cam.drag = true; cam.lx = e.clientX; cam.ly = e.clientY; }
     });
 
     window.addEventListener('mouseup', () => cam.drag = false);
-    window.addEventListener('mousemove', (e) => {
-        if(cam.drag) {
-            cam.x += e.clientX - cam.lx;
-            cam.y += e.clientY - cam.ly;
-            cam.lx = e.clientX; cam.ly = e.clientY;
-        }
-    });
+    window.addEventListener('mousemove', (e) => { if(cam.drag) { cam.x += e.clientX-cam.lx; cam.y += e.clientY-cam.ly; cam.lx=e.clientX; cam.ly=e.clientY; } });
 
-    // --- BOUCLE ---
     function animate() {
         if(!system.active) return;
-        if(system.health <= 0) {
-            document.getElementById('game-over').style.display = 'flex';
-            return;
-        }
-
-        ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width, canvas.height);
+        if(system.health <= 0) { document.getElementById('game-over').style.display = 'flex'; return; }
+        ctx.fillStyle = "#05070a"; ctx.fillRect(0,0,canvas.width, canvas.height);
         frame++;
 
-        let cx = canvas.width/2 + cam.x;
-        let cy = canvas.height/2 + cam.y;
+        let cx = canvas.width/2 + cam.x; let cy = canvas.height/2 + cam.y;
 
-        // Grille
-        ctx.strokeStyle = "#111";
-        for(let i=-1000; i<=1000; i+=GRID) {
-            ctx.beginPath(); ctx.moveTo(i+cx, -1000+cy); ctx.lineTo(i+cx, 1000+cy); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(-1000+cx, i+cy); ctx.lineTo(1000+cx, i+cy); ctx.stroke();
-        }
-
-        // Rendu
-        buildings.forEach(b => {
-            ctx.fillStyle = b.type === 'house' ? '#2c3e50' : (b.type === 'nuke_launcher' ? 'red' : '#7f8c8d');
-            ctx.fillRect(b.x+cx-20, b.y+cy-20, 40, 40);
-            if(b.type === 'nuke_launcher' && frame % 100 === 0) enemies = [];
+        // Rendu Bâtiments
+        buildings.forEach((b, index) => {
+            ctx.fillStyle = b.type === 'wall' ? "#7f8c8d" : (b.type === 'nuke_launcher' ? "#c0392b" : "#2c3e50");
+            ctx.fillRect(b.x+cx-22, b.y+cy-22, 44, 44);
+            // Barre de vie du bâtiment
+            ctx.fillStyle = "red"; ctx.fillRect(b.x+cx-20, b.y+cy-30, 40, 4);
+            ctx.fillStyle = "lime"; ctx.fillRect(b.x+cx-20, b.y+cy-30, (b.hp/(b.type==='wall'?100:50))*40, 4);
         });
 
+        // Unités
+        units.forEach(u => {
+            let target = enemies[0];
+            if(target) {
+                let dx = target.x - u.x, dy = target.y - u.y, d = Math.sqrt(dx*dx+dy*dy);
+                u.x += dx/d * 2; u.y += dy/d * 2;
+                if(d < 40) target.hp -= 1;
+            }
+            ctx.fillStyle = "white"; ctx.beginPath(); ctx.ellipse(u.x+cx, u.y+cy, 8, 11, 0, 0, 7); ctx.fill();
+        });
+
+        // Ennemis avec logique de collision
         enemies.forEach(e => {
-            let dx = -e.x, dy = -e.y, d = Math.sqrt(dx*dx+dy*dy);
-            e.x += dx/d * 1.5; e.y += dy/d * 1.5;
-            ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
-            if(d < 50) system.health -= 0.1;
+            let tx = 0, ty = 0, distToCenter = Math.sqrt(e.x*e.x + e.y*e.y);
+            let blocked = false;
+
+            // Vérifier si un bâtiment bloque le chemin
+            buildings.forEach(b => {
+                let dx = b.x - e.x, dy = b.y - e.y, d = Math.sqrt(dx*dx+dy*dy);
+                if(d < 40) {
+                    blocked = true;
+                    b.hp -= 0.2; // L'ennemi attaque le bâtiment
+                    if(b.hp <= 0) buildings = buildings.filter(item => item !== b);
+                }
+            });
+
+            if(!blocked) {
+                e.x += (-e.x/distToCenter) * 1;
+                e.y += (-e.y/distToCenter) * 1;
+            }
+
+            ctx.fillStyle = "#ff4757"; ctx.beginPath(); ctx.arc(e.x+cx, e.y+cy, 12, 0, 7); ctx.fill();
+            if(distToCenter < 50) system.health -= 0.05; // Dégâts réduits à la ville
         });
 
-        if(frame % 120 === 0) enemies.push({x: Math.random()*1000-500, y: -800});
-        
+        if(frame % 180 === 0) enemies.push({x: Math.random()*1200-600, y: -800, hp: 50});
+        if(frame % 60 === 0) system.money += 1;
+
         document.getElementById('m-val').innerText = Math.floor(system.money);
         document.getElementById('h-val').innerText = Math.max(0, Math.ceil(system.health));
-
         requestAnimationFrame(animate);
     }
 </script>
