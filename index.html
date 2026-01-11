@@ -13,7 +13,7 @@
         #hud { position: absolute; top: 20px; left: 20px; display: none; }
         .card { background: var(--panel); border: 1px solid var(--accent); padding: 12px; border-radius: 8px; margin-bottom: 5px; font-weight: bold; }
         
-        #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333; }
+        #dock { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); padding: 10px; border-radius: 15px; display: none; gap: 10px; border: 1px solid #333[...]
         .btn { background: #1a202c; color: white; border: 1px solid #444; padding: 10px 15px; border-radius: 10px; cursor: pointer; text-align: center; }
         .btn:hover { border-color: var(--accent); background: #2d3748; }
         .btn span { display: block; font-size: 10px; color: var(--accent); }
@@ -102,6 +102,16 @@
         ctx.fillStyle = "#05070a"; ctx.fillRect(0,0,canvas.width, canvas.height);
         frame++;
 
+        // --- DANS LA BOUCLE ANIMATE ---
+        // 1. Gain par les maisons (Economie)
+        if (frame % 60 === 0) { // Chaque seconde environ
+            let income = 1; // Gain de base
+            buildings.forEach(b => {
+                if(b.type === 'house') income += 2; // +2$ par maison
+            });
+            system.money += income;
+        }
+
         let cx = canvas.width/2 + cam.x; let cy = canvas.height/2 + cam.y;
 
         // Bâtiments (Style d'avant)
@@ -116,9 +126,18 @@
             let target = enemies[0];
             if(target) {
                 let dx = target.x - u.x, dy = target.y - u.y, d = Math.sqrt(dx*dx+dy*dy);
-                u.x += dx/d * 5; u.y += dy/d * 5;
+                // éviter la division par zéro
+                if (d !== 0) {
+                    u.x += dx/d * 5; u.y += dy/d * 5;
+                }
                 if(d < 20) { 
-                    target.hp -= 100; u.exploded = true; 
+                    target.hp -= 100; 
+                    u.exploded = true;
+                    // 2. Gain par combat (dans la logique des œufs/nuke)
+                    // Quand un ennemi meurt (hp <= 0), on ajoute :
+                    if (target.hp <= 0) {
+                        system.money += 10;
+                    }
                     ctx.fillStyle = "yellow"; ctx.beginPath(); ctx.arc(u.x+cx, u.y+cy, 30, 0, 7); ctx.fill();
                 }
             }
